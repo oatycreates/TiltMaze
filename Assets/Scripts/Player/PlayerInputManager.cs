@@ -23,10 +23,21 @@ namespace ProjectLunar
         /// </summary>
         public float rotSlerpRate = 15.0f;
 
+        /// <summary>
+        /// Gyro device filter factor.
+        /// </summary>
+        public float gyroFilterFactor = 0.95f;
+
+        /// <summary>
+        /// Device gyroscope rotation.
+        /// </summary>
+        private Quaternion m_deviceRot = Quaternion.identity;
+
         // Cached references
         private Transform m_trans = null;
         private Rigidbody2D m_rb2D = null;
         private GameManager m_gameManager = null;
+        private Gyroscope m_gyro = null;
 
         /// <summary>
         /// Called while objects are being initialised.
@@ -37,6 +48,13 @@ namespace ProjectLunar
             m_trans = transform;
             m_rb2D = GetComponent<Rigidbody2D>();
             m_gameManager = GameObject.FindObjectOfType<GameManager>();
+
+            if (SystemInfo.supportsGyroscope)
+            {
+                // Enable and configure the gyro if supported
+                m_gyro = Input.gyro;
+                m_gyro.enabled = true;
+            }
         }
 
         /// <summary>
@@ -92,7 +110,11 @@ namespace ProjectLunar
             // Only process input if in game state
             if (m_gameManager.GetCurrentState() == GameManager.EGameState.PLAY)
             {
-
+                // Capture gyro state
+                if (m_gyro != null)
+                {
+                    m_deviceRot = m_gyro.attitude;//Quaternion.Slerp(m_deviceRot, m_gyro.attitude, gyroFilterFactor * Time.deltaTime);
+                }
             }
         }
 
@@ -101,8 +123,8 @@ namespace ProjectLunar
         /// </summary>
         private void UpdateTick()
         {
-            //Quaternion newRot = Quaternion.AngleAxis(rotAngle * Mathf.Rad2Deg, Vector3.forward);
-            //m_trans.rotation = Quaternion.Slerp(m_trans.rotation, newRot, rotSlerpRate * Time.deltaTime);
+            Quaternion newRot = m_deviceRot;
+            m_trans.rotation = Quaternion.AngleAxis(newRot.eulerAngles.z, Vector3.forward);
         }
 
         /// <summary>
