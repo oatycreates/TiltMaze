@@ -91,7 +91,7 @@ namespace ProjectLunar
         /// <param name="a_collision">Collision information.</param>
         void OnCollisionEnter2D(Collision2D a_collision)
         {
-            if (a_collision.gameObject.CompareTag("Obstacle"))
+            /*if (a_collision.gameObject.CompareTag("Obstacle"))
             {
                 // Only accept collisions from below
                 if (Vector2.Dot(a_collision.contacts[0].normal, Vector2.down) > 0.1f)
@@ -99,7 +99,7 @@ namespace ProjectLunar
                     // Hit the obstacle
                     m_gameManager.ChangeToState(GameManager.EGameState.GAMEOVER);
                 }
-            }
+            }*/
         }
 
         /// <summary>
