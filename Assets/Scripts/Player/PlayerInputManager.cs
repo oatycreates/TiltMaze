@@ -19,29 +19,9 @@ namespace ProjectLunar
     class PlayerInputManager : MonoBehaviour
     {
         /// <summary>
-        /// Thrust velocity per tick when holding down the button.
-        /// </summary>
-        public float thrustVel = 15.0f;
-
-        /// <summary>
         /// Rate to slerp the player's rotation at per second, instead of instantly snapping.
         /// </summary>
         public float rotSlerpRate = 15.0f;
-
-        /// <summary>
-        /// Particles to enable when thrusting.
-        /// </summary>
-        public ParticleSystem thrustParticles = null;
-
-        /// <summary>
-        /// Whether the user is attempting to thrust, using a single finger.
-        /// </summary>
-        private bool m_isThrusting = false;
-
-        /// <summary>
-        /// Single touch screen position in pixel coordinates.
-        /// </summary>
-        private Vector2 m_thrustPos = Vector2.zero;
 
         // Cached references
         private Transform m_trans = null;
@@ -108,36 +88,11 @@ namespace ProjectLunar
         private void InputTick()
         {
             // Reset input state
-            m_isThrusting = false;
-            m_thrustPos = Vector2.zero;
 
             // Only process input if in game state
             if (m_gameManager.GetCurrentState() == GameManager.EGameState.PLAY)
             {
-                // Use click as first finger touch
-                if (Input.mousePresent)
-                {
-                    // Player thrust movement
-                    m_isThrusting = m_isThrusting || Input.GetMouseButton(0);
 
-                    if (m_isThrusting)
-                    {
-                        m_thrustPos = Input.mousePosition;
-                    }
-                }
-
-                // Process touch data
-                Touch[] touches = Input.touches;
-                foreach (Touch tch in touches)
-                {
-                    // Player thrust movement
-                    if (IsTouchDown(tch))
-                    {
-                        // For now, just have any touch count as a 'single' touch, even if the user is holding down multiple fingers.
-                        m_isThrusting = true;
-                        m_thrustPos = tch.position;
-                    }
-                }
             }
         }
 
@@ -146,32 +101,8 @@ namespace ProjectLunar
         /// </summary>
         private void UpdateTick()
         {
-            if (m_isThrusting)
-            {
-                // Convert input touch coordinates to world coordinates
-                Vector3 worldSingleTouchPos = Camera.main.ScreenToWorldPoint(m_thrustPos);
-
-                // Flatten input touch coordinates
-                worldSingleTouchPos.z = 0;
-
-                Vector3 offsetLook = (worldSingleTouchPos - m_trans.position).normalized;
-                if (offsetLook.sqrMagnitude > 0)
-                {
-                    // Make unit length
-                    offsetLook.Normalize();
-
-                    // Face away from the touch position, slerps
-                    float rotAngle = Mathf.Atan2(offsetLook.y, offsetLook.x);
-                    Quaternion newRot = Quaternion.AngleAxis(rotAngle * Mathf.Rad2Deg, Vector3.forward);
-                    m_trans.rotation = Quaternion.Slerp(m_trans.rotation, newRot, rotSlerpRate * Time.deltaTime);
-                }
-            }
-
-            // Update thrust particle state
-            if (thrustParticles != null)
-            {
-                thrustParticles.enableEmission = m_isThrusting;
-            }
+            //Quaternion newRot = Quaternion.AngleAxis(rotAngle * Mathf.Rad2Deg, Vector3.forward);
+            //m_trans.rotation = Quaternion.Slerp(m_trans.rotation, newRot, rotSlerpRate * Time.deltaTime);
         }
 
         /// <summary>
@@ -180,11 +111,13 @@ namespace ProjectLunar
         private void PhysicsTick()
         {
             Vector2 velChange = Vector2.zero;
-
-            if (m_isThrusting)
+            
+            // Only process if in game state
+            if (m_gameManager.GetCurrentState() == GameManager.EGameState.PLAY)
             {
-                // Update velocity change
-                velChange += (Vector2)(-m_trans.right) * thrustVel;
+                // Apply gravity relative to rotation
+                Vector2 downVec = -m_trans.up;
+                velChange += new Vector2(downVec.x, downVec.y) * Physics2D.gravity.magnitude;
             }
 
             // Apply velocity change
