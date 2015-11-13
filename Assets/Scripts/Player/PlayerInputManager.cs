@@ -19,14 +19,24 @@ namespace ProjectLunar
     class PlayerInputManager : MonoBehaviour
     {
         /// <summary>
-        /// Rate to slerp the player's rotation at per second, instead of instantly snapping.
+        /// Player rotation slerp speed per second.
         /// </summary>
-        public float rotSlerpRate = 15.0f;
+        public float rotSlerpFactor = 15.0f;
 
         /// <summary>
         /// Gyro device filter factor.
         /// </summary>
         public float gyroFilterFactor = 0.95f;
+
+        /// <summary>
+        /// How quickly to lerp the camera's position.
+        /// </summary>
+        public float camPosLerpFactor = 10.0f;
+
+        /// <summary>
+        /// Camera reference.
+        /// </summary>
+        public GameObject sceneCam = null;
 
         /// <summary>
         /// Device gyroscope rotation.
@@ -38,6 +48,7 @@ namespace ProjectLunar
         private Rigidbody2D m_rb2D = null;
         private GameManager m_gameManager = null;
         private Gyroscope m_gyro = null;
+        private Transform m_sceneCamTrans = null;
 
         /// <summary>
         /// Called while objects are being initialised.
@@ -48,12 +59,18 @@ namespace ProjectLunar
             m_trans = transform;
             m_rb2D = GetComponent<Rigidbody2D>();
             m_gameManager = GameObject.FindObjectOfType<GameManager>();
+            m_sceneCamTrans = sceneCam.transform;
 
             if (SystemInfo.supportsGyroscope)
             {
                 // Enable and configure the gyro if supported
                 m_gyro = Input.gyro;
                 m_gyro.enabled = true;
+
+                Input.compensateSensors = true;
+
+                // Set initial device rotation value
+                m_deviceRot = m_gyro.attitude;
             }
         }
 
@@ -113,7 +130,7 @@ namespace ProjectLunar
                 // Capture gyro state
                 if (m_gyro != null)
                 {
-                    m_deviceRot = m_gyro.attitude;//Quaternion.Slerp(m_deviceRot, m_gyro.attitude, gyroFilterFactor * Time.deltaTime);
+                    m_deviceRot = Quaternion.Slerp(m_deviceRot, m_gyro.attitude, gyroFilterFactor * Time.deltaTime);
                 }
             }
         }
@@ -123,8 +140,18 @@ namespace ProjectLunar
         /// </summary>
         private void UpdateTick()
         {
-            Quaternion newRot = m_deviceRot;
-            m_trans.rotation = Quaternion.AngleAxis(newRot.eulerAngles.z, Vector3.forward);
+            float offsetRotation = m_deviceRot.eulerAngles.z;
+
+            Debug.Log("Rot: " + m_deviceRot.eulerAngles.z);
+
+            // Update camera transform
+            float origZ = m_sceneCamTrans.position.z;
+            m_sceneCamTrans.position = Vector3.Lerp(m_sceneCamTrans.position, m_trans.position, camPosLerpFactor * Time.deltaTime);
+            m_sceneCamTrans.position = new Vector3(m_sceneCamTrans.position.x, m_sceneCamTrans.position.y, origZ); // Exclude Z
+            m_sceneCamTrans.rotation = Quaternion.AngleAxis(m_deviceRot.eulerAngles.z, Vector3.forward);
+
+            // Slerp player rotation to match camera
+            m_trans.rotation = Quaternion.Slerp(m_trans.rotation, m_sceneCamTrans.rotation, rotSlerpFactor);
         }
 
         /// <summary>
@@ -137,9 +164,17 @@ namespace ProjectLunar
             // Only process if in game state
             if (m_gameManager.GetCurrentState() == GameManager.EGameState.PLAY)
             {
-                // Apply gravity relative to rotation
-                Vector2 downVec = -m_trans.up;
-                velChange += new Vector2(downVec.x, downVec.y) * Physics2D.gravity.magnitude;
+                if (m_gyro != null)
+                {
+                    // Apply gravity relative to rotation
+                    Vector2 transDown = -m_trans.up;
+                    velChange += new Vector2(transDown.x, transDown.y) * Physics2D.gravity.magnitude;
+
+#if UNITY_EDITOR
+                    // Draw player up direction
+                    Debug.DrawLine(m_trans.position, m_trans.position + new Vector3(transDown.x, transDown.y, 0) * 10, Color.red);
+#endif
+                }
             }
 
             // Apply velocity change
