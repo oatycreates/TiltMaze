@@ -3,7 +3,7 @@
  * Author: Patrick Ferguson
  * Maintainer: Patrick Ferguson
  * Created: 12/11/2015
- * Copyright: (c) 2015 Patrick Ferguson, All Rights Reserved.
+ * Copyright: (c) 2015 Team Gyro Mazr, All Rights Reserved.
  * Description: Manages state transitions.
  **/
 
